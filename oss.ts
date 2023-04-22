@@ -71,7 +71,7 @@ export class OSSRequestSigner {
 		contentType: string,
 		dateOrExpires: string,
 	): string {
-		var verb = method;
+		let verb = method;
 		if (verb === "HEAD") verb = "GET";
 
 		const contentMd5 = "";
