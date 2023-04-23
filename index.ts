@@ -1,4 +1,3 @@
-const { createHmac } = await import("node:crypto");
 const { OSSRequestSigner } = await import("./oss.js");
 
 const accessKeyId = process.env.ACCESS_KEY_ID || "";
@@ -27,6 +26,21 @@ const signer = new OSSRequestSigner(
 	upstreamHost,
 );
 
+function accessLogMiddleware(
+	handler: (request: Request) => Promise<Response>,
+): (request: Request) => Promise<Response> {
+	return async (request) => {
+		const requestStart = Date.now();
+		const response = await handler(request);
+		const requestEnd = Date.now();
+		const elpased = requestEnd - requestStart;
+		console.log(
+			`${request.method} ${request.url} ${response.status} ${elpased}ms`,
+		);
+		return response;
+	};
+}
+
 async function router(request: Request): Promise<Response> {
 	const url = new URL(request.url);
 	const path = url.pathname;
@@ -42,7 +56,6 @@ async function ok(request: Request): Promise<Response> {
 }
 
 async function handleResource(request: Request): Promise<Response> {
-	const requestStart = Date.now();
 	const url = new URL(request.url);
 	const path = url.pathname;
 	const bucket = path.split("/")[1];
@@ -63,7 +76,10 @@ async function handleResource(request: Request): Promise<Response> {
 			},
 		});
 	} else {
-		const upstreamUrl = `${upstreamSchema}://${bucket}.${upstreamHost}/${objectName}`;
+		const upstreamUrl = new URL(
+			`${upstreamSchema}://${bucket}.${upstreamHost}/${objectName}`,
+		);
+		upstreamUrl.search = url.search; // copy query string
 		const headers = signer.getSignedHeaders(
 			request.method,
 			bucket,
@@ -86,5 +102,5 @@ console.log(`Listening on port ${port}`);
 
 Bun.serve({
 	port: port,
-	fetch: router,
+	fetch: accessLogMiddleware(router),
 });
