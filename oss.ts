@@ -23,6 +23,7 @@ export class OSSRequestSigner {
 		bucket: string,
 		objectName: string,
 		contentType: string,
+		contentMd5: string | undefined | null = null,
 		expiresInSeconds: number = 300,
 	): string {
 		const date = new Date();
@@ -35,6 +36,7 @@ export class OSSRequestSigner {
 			bucket,
 			objectName,
 			contentType,
+			contentMd5 ?? "",
 			expires.toString(),
 		);
 		url.searchParams.set("OSSAccessKeyId", this.accessKeyId);
@@ -48,6 +50,7 @@ export class OSSRequestSigner {
 		bucket: string,
 		objectName: string,
 		contentType: string,
+		contentMd5: string | undefined | null = null,
 	): Record<string, string> {
 		const date = new Date().toUTCString();
 		const signature = this.generateSignature(
@@ -55,13 +58,18 @@ export class OSSRequestSigner {
 			bucket,
 			objectName,
 			contentType,
+			contentMd5 ?? "",
 			date,
 		);
-		return {
+		const ret: Record<string, string> = {
 			authorization: `OSS ${this.accessKeyId}:${signature}`,
 			date: date,
 			"content-type": contentType,
 		};
+		if (contentMd5) {
+			ret["content-md5"] = contentMd5;
+		}
+		return ret;
 	}
 
 	public generateSignature(
@@ -69,12 +77,10 @@ export class OSSRequestSigner {
 		bucket: string,
 		objectName: string,
 		contentType: string,
+		contentMd5: string,
 		dateOrExpires: string,
 	): string {
-		let verb = method;
-		if (verb === "HEAD") verb = "GET";
-
-		const contentMd5 = "";
+		const verb = method;
 		const date = dateOrExpires;
 		const canonicalizedOSSHeaders = "";
 		const canonicalizedResource = `/${bucket}/${objectName}`;

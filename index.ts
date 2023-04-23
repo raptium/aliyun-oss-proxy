@@ -57,7 +57,7 @@ async function ok(request: Request): Promise<Response> {
 
 async function handleResource(request: Request): Promise<Response> {
 	const url = new URL(request.url);
-	const path = url.pathname;
+	const path = decodeURIComponent(url.pathname);
 	const bucket = path.split("/")[1];
 	const objectName = path.substring(bucket.length + 2);
 	const contentType = request.headers.get("content-type") || "";
@@ -80,17 +80,30 @@ async function handleResource(request: Request): Promise<Response> {
 			`${upstreamSchema}://${bucket}.${upstreamHost}/${objectName}`,
 		);
 		upstreamUrl.search = url.search; // copy query string
+
+		const contentMd5 = request.headers.get("content-md5");
+		const range = request.headers.get("range");
+
 		const headers = signer.getSignedHeaders(
 			request.method,
 			bucket,
 			objectName,
 			contentType,
+			contentMd5,
 		);
+		const proxyHeaders = {
+			...headers,
+		};
+		if (range) {
+			proxyHeaders["range"] = range;
+		}
+
+		const body = await request.arrayBuffer(); // Bun does not support streaming out request body yet
+
 		return await fetch(upstreamUrl, {
-			headers: {
-				...headers,
-				range: request.headers.get("range") || "",
-			},
+			method: request.method,
+			headers: proxyHeaders,
+			body: body,
 		});
 	}
 }
