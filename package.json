@@ -1,9 +1,0 @@
-{
-  "name": "aliyun-oss-proxy",
-  "license": "MIT",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "bun-types": "^0.5.0"
-  }
-}
